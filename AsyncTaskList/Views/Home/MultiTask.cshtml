@@ -1,0 +1,79 @@
+﻿@*
+    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+*@
+@{
+}
+<button id="btn" type="button">按下去</button>
+
+<div id="resultModal" style="display:none;">
+    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+        <div style="position: relative; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border-radius: 10px; width: 300px;">
+            <h3>任務執行結果</h3>
+            <div id="progressContainer" style="width: 100%; background-color: #f3f3f3; border-radius: 5px; margin-bottom: 10px;">
+                <div id="progressBar" style="width: 0%; height: 20px; background-color: #4caf50; border-radius: 5px; transition: width 0.5s;"></div>
+            </div>
+            <ul id="resultList">
+                <li id="Task1">Task1</li>
+                <li id="Task2">Task2</li>
+                <li id="Task3">Task3</li>
+                <li id="Task4">Task4</li>
+            </ul>
+            <button id="closeBtn" type="button">關閉</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById("btn").addEventListener("click", function () {
+        var url = "/Home/ExecuteTasks";
+        var totalTasks = 4;
+        var completedTasks = 0;
+
+        document.getElementById("resultModal").style.display = "block";
+        var resultList = document.getElementById("resultList");
+        var progressBar = document.getElementById("progressBar");
+
+        progressBar.style.width = "0%";
+        document.getElementById('Task1').querySelector('span')?.remove();
+        document.getElementById('Task2').querySelector('span')?.remove();
+        document.getElementById('Task3').querySelector('span')?.remove();
+        document.getElementById('Task4').querySelector('span')?.remove();
+
+        fetch(url)
+            .then(async response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                const regex = /\{.*?\}/;
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    console.log(chunk);
+                    const match = chunk.match(regex);
+
+                    if (match) {
+                        const result = JSON.parse(match[0]);
+                        var listItem = document.getElementById(result.message);
+                        if (listItem) {
+                            if (result.isSuccess) {
+                                listItem.innerHTML += ' <span style="color: green;">✔️</span>';
+                            } else {
+                                listItem.innerHTML += ' <span style="color: red;">❌</span>';
+                            }
+                        }
+
+                        completedTasks++;
+                        var progress = (completedTasks / totalTasks) * 100;
+                        progressBar.style.width = progress + "%";
+                    }
+                }
+            }).catch(reason => {
+                console.log(reason);
+            });
+    });
+
+    document.getElementById("closeBtn").addEventListener("click", function () {
+        document.getElementById("resultModal").style.display = "none";
+    });
+</script>
