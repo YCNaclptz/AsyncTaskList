@@ -8,7 +8,7 @@ namespace AsyncEnumerable_TEST_MVC.Controllers;
 
 public class HomeController(
     ILogger<HomeController> logger, 
-    IHomeService homeService,
+    IJobExecutionService jobService,
     ISqlRepository sqlRepository) : Controller
 {
 
@@ -32,10 +32,10 @@ public class HomeController(
     {
         var tasks = new List<Task<BaseModel>>
         {
-            homeService.Task1(sqlRepository),
-            homeService.Task2(sqlRepository),
-            homeService.Task3(sqlRepository),
-            homeService.Task4(sqlRepository)
+            jobService.InitializeJobAsync(sqlRepository),
+            jobService.ProcessBusinessLogicAsync(sqlRepository),
+            jobService.CallExternalApiAsync(sqlRepository),
+            jobService.GenerateReportAsync(sqlRepository)
         };
 
         var results = new List<BaseModel>();

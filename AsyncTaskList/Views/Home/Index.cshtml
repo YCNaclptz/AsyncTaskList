@@ -1,8 +1,24 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Async Task Manager";
 }
 
 <div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+    <h1 class="display-4">Async Task Manager</h1>
+    <p class="lead">A demonstration of real-time task progress tracking using ASP.NET Core IAsyncEnumerable and JavaScript Streams.</p>
+    
+    <div class="mt-4">
+        <p>This project showcases how to:</p>
+        <ul class="list-inline">
+            <li class="list-inline-item badge bg-secondary">Async Streams</li>
+            <li class="list-inline-item badge bg-secondary">Real-time Progress</li>
+            <li class="list-inline-item badge bg-secondary">Database Transactions</li>
+        </ul>
+    </div>
+
+    <div class="mt-5">
+        <a asp-controller="Home" asp-action="MultiTask" class="btn btn-primary btn-lg">
+            View Live Demo <i class="bi bi-arrow-right-circle"></i>
+        </a>
+    </div>
 </div>
+

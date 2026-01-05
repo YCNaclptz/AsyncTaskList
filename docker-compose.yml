@@ -1,0 +1,14 @@
+services:
+  oracle-db:
+    image: gvenzl/oracle-free:slim
+    container_name: oracle-db
+    environment:
+      - ORACLE_PASSWORD=SecretPassword123
+      - APP_USER=myuser
+      - APP_USER_PASSWORD=mypassword
+      - ORACLE_DATABASE=free
+    ports:
+      - "1521:1521"
+    volumes:
+      - ./init_scripts:/container-entrypoint-initdb.d
+    restart: always

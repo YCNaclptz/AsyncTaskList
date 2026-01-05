@@ -1,79 +1,189 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
-@{
+﻿@{
+    ViewData["Title"] = "Multi-Task Progress";
 }
-<button id="btn" type="button">按下去</button>
 
-<div id="resultModal" style="display:none;">
-    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-        <div style="position: relative; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border-radius: 10px; width: 300px;">
-            <h3>任務執行結果</h3>
-            <div id="progressContainer" style="width: 100%; background-color: #f3f3f3; border-radius: 5px; margin-bottom: 10px;">
-                <div id="progressBar" style="width: 0%; height: 20px; background-color: #4caf50; border-radius: 5px; transition: width 0.5s;"></div>
+<div class="text-center mt-5">
+    <h1 class="display-4">Task Execution Demo</h1>
+    <p class="lead">Click the button below to start the asynchronous tasks and view their progress in real-time.</p>
+    
+    <button id="btnStart" type="button" class="btn btn-primary btn-lg">
+        Start Tasks
+    </button>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="resultModal" tabindex="-1" aria-labelledby="resultModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="resultModalLabel">Execution Progress</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="btnCloseHeader" disabled></button>
+      </div>
+      <div class="modal-body">
+        
+        <div class="mb-3">
+            <label class="form-label">Total Progress</label>
+            <div class="progress" style="height: 25px;">
+              <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
             </div>
-            <ul id="resultList">
-                <li id="Task1">Task1</li>
-                <li id="Task2">Task2</li>
-                <li id="Task3">Task3</li>
-                <li id="Task4">Task4</li>
-            </ul>
-            <button id="closeBtn" type="button">關閉</button>
         </div>
+
+        <ul class="list-group" id="resultList">
+          <li class="list-group-item d-flex justify-content-between align-items-center" id="Job Initialization">
+            Task 1: Database Insert (5s)
+            <span class="badge bg-secondary status-badge">Pending</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center" id="Business Logic">
+            Task 2: Processing (2s)
+            <span class="badge bg-secondary status-badge">Pending</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center" id="External API Call">
+            Task 3: Validation (3s - Fails)
+            <span class="badge bg-secondary status-badge">Pending</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center" id="Report Generation">
+            Task 4: Cleanup (2s)
+            <span class="badge bg-secondary status-badge">Pending</span>
+          </li>
+        </ul>
+
+        <div id="errorMessage" class="alert alert-danger mt-3 d-none" role="alert">
+            An error occurred while communicating with the server.
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btnCloseFooter" disabled>Close</button>
+      </div>
     </div>
+  </div>
 </div>
 
 <script>
-    document.getElementById("btn").addEventListener("click", function () {
-        var url = "/Home/ExecuteTasks";
-        var totalTasks = 4;
-        var completedTasks = 0;
+    document.getElementById("btnStart").addEventListener("click", function () {
+        const url = "/Home/ExecuteTasks";
+        const totalTasks = 4;
+        let completedTasks = 0;
 
-        document.getElementById("resultModal").style.display = "block";
-        var resultList = document.getElementById("resultList");
-        var progressBar = document.getElementById("progressBar");
+        // UI Initialization
+        const modalElement = document.getElementById("resultModal");
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+        
+        const progressBar = document.getElementById("progressBar");
+        const resultList = document.getElementById("resultList");
+        const btnCloseHeader = document.getElementById("btnCloseHeader");
+        const btnCloseFooter = document.getElementById("btnCloseFooter");
+        const errorMessage = document.getElementById("errorMessage");
 
+        // Reset UI
         progressBar.style.width = "0%";
-        document.getElementById('Task1').querySelector('span')?.remove();
-        document.getElementById('Task2').querySelector('span')?.remove();
-        document.getElementById('Task3').querySelector('span')?.remove();
-        document.getElementById('Task4').querySelector('span')?.remove();
+        progressBar.innerText = "0%";
+        progressBar.classList.add("progress-bar-animated");
+        progressBar.classList.remove("bg-success", "bg-danger");
+        
+        btnCloseHeader.disabled = true;
+        btnCloseFooter.disabled = true;
+        errorMessage.classList.add("d-none");
+
+        document.querySelectorAll('.status-badge').forEach(badge => {
+            badge.className = 'badge bg-secondary status-badge';
+            badge.innerText = 'Pending';
+        });
 
         fetch(url)
             .then(async response => {
+                if (!response.ok) throw new Error("Network response was not ok");
+                
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
-                const regex = /\{.*?\}/;
+                let buffer = "";
+                let boundary = 0;
+                let braceCount = 0;
+                let inObject = false;
+                let objectStartIndex = -1;
+
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
 
-                    const chunk = decoder.decode(value);
-                    console.log(chunk);
-                    const match = chunk.match(regex);
+                    const chunk = decoder.decode(value, { stream: true });
+                    buffer += chunk;
 
-                    if (match) {
-                        const result = JSON.parse(match[0]);
-                        var listItem = document.getElementById(result.message);
-                        if (listItem) {
-                            if (result.isSuccess) {
-                                listItem.innerHTML += ' <span style="color: green;">✔️</span>';
-                            } else {
-                                listItem.innerHTML += ' <span style="color: red;">❌</span>';
+                    // Parse buffer for complete JSON objects
+                    for (let i = boundary; i < buffer.length; i++) {
+                        const char = buffer[i];
+                        
+                        if (char === '{') {
+                            if (!inObject) {
+                                inObject = true;
+                                objectStartIndex = i;
+                            }
+                            braceCount++;
+                        } else if (char === '}') {
+                            braceCount--;
+                            if (inObject && braceCount === 0) {
+                                // Found complete object
+                                const jsonStr = buffer.substring(objectStartIndex, i + 1);
+                                try {
+                                    const result = JSON.parse(jsonStr);
+                                    updateTaskStatus(result);
+                                } catch (e) {
+                                    console.error("JSON Parse Error", e);
+                                }
+                                
+                                inObject = false;
+                                boundary = i + 1; // Move boundary past this object
                             }
                         }
-
-                        completedTasks++;
-                        var progress = (completedTasks / totalTasks) * 100;
-                        progressBar.style.width = progress + "%";
+                    }
+                    
+                    // Cleanup buffer to prevent memory issues on very large streams
+                    if (boundary > 0) {
+                        buffer = buffer.substring(boundary);
+                        boundary = 0;
                     }
                 }
-            }).catch(reason => {
-                console.log(reason);
+                
+                finishProgress();
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                errorMessage.classList.remove("d-none");
+                errorMessage.innerText = "Error: " + error.message;
+                progressBar.classList.remove("progress-bar-animated");
+                progressBar.classList.add("bg-danger");
+                enableCloseButtons();
             });
-    });
+            
+        function updateTaskStatus(result) {
+            completedTasks++;
+            const progress = (completedTasks / totalTasks) * 100;
+            progressBar.style.width = progress + "%";
+            progressBar.innerText = Math.round(progress) + "%";
 
-    document.getElementById("closeBtn").addEventListener("click", function () {
-        document.getElementById("resultModal").style.display = "none";
+            const listItem = document.getElementById(result.message);
+            if (listItem) {
+                const badge = listItem.querySelector('.status-badge');
+                if (result.isSuccess) {
+                    badge.className = 'badge bg-success status-badge';
+                    badge.innerText = 'Success';
+                } else {
+                    badge.className = 'badge bg-danger status-badge';
+                    badge.innerText = 'Failed';
+                }
+            }
+        }
+        
+        function finishProgress() {
+            progressBar.classList.remove("progress-bar-animated");
+            progressBar.classList.add("bg-success");
+            enableCloseButtons();
+        }
+
+        function enableCloseButtons() {
+            btnCloseHeader.disabled = false;
+            btnCloseFooter.disabled = false;
+        }
     });
 </script>
