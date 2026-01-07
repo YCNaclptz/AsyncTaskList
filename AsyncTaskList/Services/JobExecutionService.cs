@@ -54,17 +54,27 @@ public class JobExecutionService : IJobExecutionService
         }
     }
 
-    public async Task<BaseModel> CallExternalApiAsync(ISqlRepository sqlRepository)
+    public async Task<BaseModel> CallExternalApiAsync(ISqlRepository sqlRepository, bool simulateFailure)
     {
         try
         {
             await Task.Delay(3000);
-            // Simulate a failure
+            if (simulateFailure)
+            {
+                // Simulate a failure
+                return new BaseModel
+                {
+                    IsSuccess = false,
+                    Message = "External API Call",
+                    Data = "Connection timeout detected."
+                };
+            }
+
             return new BaseModel
             {
-                IsSuccess = false,
+                IsSuccess = true,
                 Message = "External API Call",
-                Data = "Connection timeout detected."
+                Data = "API call successful."
             };
         }
         catch (Exception ex)

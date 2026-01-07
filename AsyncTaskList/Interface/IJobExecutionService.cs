@@ -7,6 +7,6 @@ public interface IJobExecutionService
 {
     Task<BaseModel> InitializeJobAsync(ISqlRepository sqlRepository);
     Task<BaseModel> ProcessBusinessLogicAsync(ISqlRepository sqlRepository);
-    Task<BaseModel> CallExternalApiAsync(ISqlRepository sqlRepository);
+    Task<BaseModel> CallExternalApiAsync(ISqlRepository sqlRepository, bool simulateFailure);
     Task<BaseModel> GenerateReportAsync(ISqlRepository sqlRepository);
 }
