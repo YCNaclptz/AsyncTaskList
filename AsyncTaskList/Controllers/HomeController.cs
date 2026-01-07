@@ -7,9 +7,8 @@ using DbService.Interface;
 namespace AsyncEnumerable_TEST_MVC.Controllers;
 
 public class HomeController(
-    ILogger<HomeController> logger, 
-    IJobExecutionService jobService,
-    ISqlRepository sqlRepository) : Controller
+    ILogger<HomeController> logger,
+    IJobExecutionService jobService) : Controller
 {
 
     public IActionResult Index()
@@ -28,13 +27,15 @@ public class HomeController(
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
     }
 
-    public async IAsyncEnumerable<BaseModel> ExecuteTasks()
+    public async IAsyncEnumerable<BaseModel> ExecuteTasks(
+        [FromServices] ISqlRepository sqlRepository,
+        [FromQuery] bool fail = true)
     {
         var tasks = new List<Task<BaseModel>>
         {
             jobService.InitializeJobAsync(sqlRepository),
             jobService.ProcessBusinessLogicAsync(sqlRepository),
-            jobService.CallExternalApiAsync(sqlRepository),
+            jobService.CallExternalApiAsync(sqlRepository, fail),
             jobService.GenerateReportAsync(sqlRepository)
         };
 

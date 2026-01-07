@@ -64,6 +64,7 @@
         const url = "/Home/ExecuteTasks";
         const totalTasks = 4;
         let completedTasks = 0;
+        let isAnyTaskFailed = false;
 
         // UI Initialization
         const modalElement = document.getElementById("resultModal");
@@ -94,57 +95,69 @@
         fetch(url)
             .then(async response => {
                 if (!response.ok) throw new Error("Network response was not ok");
-                
+
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
+                
                 let buffer = "";
-                let boundary = 0;
                 let braceCount = 0;
-                let inObject = false;
                 let objectStartIndex = -1;
 
                 while (true) {
                     const { done, value } = await reader.read();
-                    if (done) break;
+                    if (done) {
+                        // The stream has finished. Any remaining content in the buffer
+                        // is unlikely to be a complete object if the stream was well-formed,
+                        // but we'll log it for debugging.
+                        if (buffer.trim().length > 0) {
+                            console.warn("Stream finished with incomplete data in buffer:", buffer);
+                        }
+                        break; // Exit the loop
+                    }
 
-                    const chunk = decoder.decode(value, { stream: true });
-                    buffer += chunk;
+                    buffer += decoder.decode(value, { stream: true });
 
-                    // Parse buffer for complete JSON objects
-                    for (let i = boundary; i < buffer.length; i++) {
-                        const char = buffer[i];
-                        
+                    // Scan the buffer for complete JSON objects
+                    let scanIndex = 0;
+                    while (scanIndex < buffer.length) {
+                        const char = buffer[scanIndex];
+
                         if (char === '{') {
-                            if (!inObject) {
-                                inObject = true;
-                                objectStartIndex = i;
+                            if (braceCount === 0) {
+                                objectStartIndex = scanIndex;
                             }
                             braceCount++;
                         } else if (char === '}') {
                             braceCount--;
-                            if (inObject && braceCount === 0) {
-                                // Found complete object
-                                const jsonStr = buffer.substring(objectStartIndex, i + 1);
+                            if (braceCount === 0 && objectStartIndex !== -1) {
+                                // Found a complete JSON object from { to }
+                                const objectString = buffer.substring(objectStartIndex, scanIndex + 1);
+                                
                                 try {
-                                    const result = JSON.parse(jsonStr);
+                                    const result = JSON.parse(objectString);
                                     updateTaskStatus(result);
                                 } catch (e) {
-                                    console.error("JSON Parse Error", e);
+                                    // This can happen if the text between {} is not valid JSON.
+                                    // We'll log it but continue processing.
+                                    console.error("Failed to parse object string:", e, "String:", objectString);
                                 }
                                 
-                                inObject = false;
-                                boundary = i + 1; // Move boundary past this object
+                                // Reset for the next potential object
+                                objectStartIndex = -1;
                             }
                         }
+                        scanIndex++;
                     }
-                    
-                    // Cleanup buffer to prevent memory issues on very large streams
-                    if (boundary > 0) {
-                        buffer = buffer.substring(boundary);
-                        boundary = 0;
+
+                    // Clean up the buffer by removing the text that has been fully scanned.
+                    // If an object is still open, we keep it and the scanner will resume on the next chunk.
+                    if (objectStartIndex !== -1) {
+                        buffer = buffer.substring(objectStartIndex);
+                    } else {
+                        buffer = ""; // All scanned text was processed
                     }
                 }
-                
+
                 finishProgress();
             })
             .catch(error => {
@@ -155,7 +168,7 @@
                 progressBar.classList.add("bg-danger");
                 enableCloseButtons();
             });
-            
+
         function updateTaskStatus(result) {
             completedTasks++;
             const progress = (completedTasks / totalTasks) * 100;
@@ -171,13 +184,18 @@
                 } else {
                     badge.className = 'badge bg-danger status-badge';
                     badge.innerText = 'Failed';
+                    isAnyTaskFailed = true; // Mark that at least one task has failed
                 }
             }
         }
         
         function finishProgress() {
             progressBar.classList.remove("progress-bar-animated");
-            progressBar.classList.add("bg-success");
+            if (isAnyTaskFailed) {
+                progressBar.classList.add("bg-danger");
+            } else {
+                progressBar.classList.add("bg-success");
+            }
             enableCloseButtons();
         }
 
