@@ -360,4 +360,5 @@ MigrationBackup/
 .ionide/
 
 # Fody - auto-generated XML schema
-FodyWeavers.xsd.gemini/
+FodyWeavers.xsd
+.gemini/
